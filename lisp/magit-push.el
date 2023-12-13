@@ -39,6 +39,8 @@
    ("-F" "Force"            ("-f" "--force"))
    ("-h" "Disable hooks"    "--no-verify")
    ("-n" "Dry run"          ("-n" "--dry-run"))
+   (magit-push:--push-option
+    :if (lambda () (magit-git-version>= "2.10")))
    (5 "-u" "Set upstream"   "--set-upstream")
    (7 "-t" "Follow tags"    "--follow-tags")]
   [:if magit-get-current-branch
@@ -371,6 +373,46 @@ You can add this command as a suffix using something like:
 
 (defun magit-push-to-remote--desc ()
   (format "using %s" (magit--propertize-face "git push <remote>" 'bold)))
+
+;;;; Infix Commands
+
+(transient-define-argument magit-push:--push-option ()
+  :description "Push Options"
+  :class 'transient-option
+  :key "-o"
+  :multi-value 'repeat
+  :choices '(lambda () (when (and (require 'forge nil t)
+                                  (fboundp 'forge-get-repository)
+                                  (fboundp 'forge-gitlab-repository)
+                                  (fboundp 'forge-srht-repository)
+                                  (fboundp 'forge-gitea-repository))
+                         (cl-typecase (forge-get-repository nil)
+                           ;; https://docs.gitlab.com/ee/user/project/push_options.html
+                           (forge-gitlab-repository '("ci.skip"
+                                                      "integrations.skip_ci"
+                                                      "merge_request.create"
+                                                      "merge_request.target="
+                                                      "merge_request.target_project="
+                                                      "merge_request.merge_when_pipeline_succeeds"
+                                                      "merge_request.remove_source_branch"
+                                                      "merge_request.title="
+                                                      "merge_request.description="
+                                                      "merge_request.draft"
+                                                      "merge_request.milestone="
+                                                      "merge_request.label="
+                                                      "merge_request.unlabel="
+                                                      "merge_request.assign="
+                                                      "merge_request.unassign="))
+                           ;; https://man.sr.ht/git.sr.ht/#push-options
+                           (forge-srht-repository '("debug"
+                                                    "skip-ci"
+                                                    "submit="
+                                                    "description="
+                                                    "visibility="))
+                           ;; https://docs.gitea.com/usage/push-options
+                           (forge-gitea-repository '("repo.private"
+                                                     "repo.template")))))
+  :argument "--push-option=")
 
 ;;; _
 (provide 'magit-push)
